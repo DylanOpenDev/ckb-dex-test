@@ -13,13 +13,13 @@ const SUDTDep = {
 }
 
 const OrderBookLockScript = {
-  codeHash: '0x6cfc6d734321ec13fcc90872158bcffa9e2b58482d76349c574178bcb22be6aa',
+  codeHash: '0x6982301f72a13f64ed63cbb8985ca22f8f38f90405f86bf6b661f69a01a1dedf',
   hashType: 'type',
   args: '',
 }
 
 const OrderBookDep = {
-  outPoint: { txHash: '0xcbb8c9e0b8756c868eac3e4c31fe7ea2d7f7c378d4761c557051f5cd8728a701', index: '0x0' },
+  outPoint: { txHash: '0x32f425601393d0162ac7f30f9c637f33ce3a64599d18108f65f98c27659d7be9', index: '0x0' },
   depType: 'depGroup',
 }
 
