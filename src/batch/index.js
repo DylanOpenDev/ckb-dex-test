@@ -42,7 +42,7 @@ const multiBuyOrderData = count => {
   return orderDataList
 }
 
-const splitBuyOrderCells = async privateKey => {
+const batchBuyOrderCells = async privateKey => {
   let pubKey = ckb.utils.privateKeyToPublicKey(privateKey)
   const args = '0x' + ckb.utils.blake160(pubKey, 'hex')
   const liveCells = await getCells(await secp256k1LockScript(args))
@@ -90,7 +90,7 @@ const multiSellOrderData = (count, sudtAmount) => {
   return orderDataList
 }
 
-const splitSellOrderCells = async privateKey => {
+const batchSellOrders = async privateKey => {
   let pubKey = ckb.utils.privateKeyToPublicKey(privateKey)
   const args = '0x' + ckb.utils.blake160(pubKey, 'hex')
   const udtLiveCells = (await getSUDTCells(batchUDTType)).filter(cell => cell.output.capacity > SELLER_CAPACITY * BigInt(SPLIT_COUNT))
@@ -124,5 +124,5 @@ const splitSellOrderCells = async privateKey => {
   return txHash
 }
 
-// splitBuyOrderCells('0xa664b96648920d1b8bed64f166ceba73069270ecc832ab6eda45f57e90945987')
-splitSellOrderCells('0xc4c217576b0b3e908be7460745768bf18691199b6d9541af1a361f4cfe313a94')
+// batchBuyOrders('0xa664b96648920d1b8bed64f166ceba73069270ecc832ab6eda45f57e90945987')
+batchSellOrders('0xc4c217576b0b3e908be7460745768bf18691199b6d9541af1a361f4cfe313a94')

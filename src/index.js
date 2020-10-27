@@ -9,7 +9,7 @@ const orderPrice = BigInt(5) * BigInt(10) ** BigInt(10)
 
 // alice tx hash: 0x54991d91f50127f03ee55f6155af45bbdae13addb5000333796e17dd68d8c0e7
 // bob tx hash: 0x21604d40733bc96795e93a403cc58264dff44be439a4d96d289a6d450d3a07da
-const creatOrderTxs = async () => {
+const createOrderTxs = async () => {
   const aliceBuyerCellData = `0x${u128ToLEHex(BigInt(0))}${u128ToLEHex(BigInt(40) * SUDT_DECIMAL)}${u64ToLEHex(orderPrice)}00`
   const bobSellerCellData = `0x${u128ToLEHex(BigInt(100) * SUDT_DECIMAL)}${u128ToLEHex(BigInt(200) * CKB_DECIMAL)}${u64ToLEHex(
     orderPrice,
@@ -47,7 +47,7 @@ const createDealMakerOrderTx = async () => {
   )
 }
 
-const cancelSellerOrderTx = async () => {
+const cancelOrClaimOrderTx = async () => {
   const sellerOutPoint = {
     txHash: '0xe51f09022db2e26ac675eeb7c91c3cc07f69268a5996b25dd7504aa661750fd8',
     index: '0x2',
@@ -55,4 +55,4 @@ const cancelSellerOrderTx = async () => {
   await cancelOrderTx(BOB_PRIVATE_KEY, sellerOutPoint, BigInt(600) * CKB_DECIMAL)
 }
 
-cancelSellerOrderTx()
+cancelOrClaimOrderTx()
