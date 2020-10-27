@@ -8,6 +8,8 @@
   "license": "MIT",
   "scripts": {
     "start": "node src/index.js",
+    "batch": "node src/batch/index.js",
+    "test": "jest",
     "lint": "eslint src/**/*.js --fix"
   },
   "dependencies": {
@@ -20,11 +22,12 @@
     "dotenv": "^8.2.0",
     "eslint": "^7.7.0",
     "husky": "^4.2.5",
+    "jest": "^26.6.1",
     "typescript": "^4.0.3"
   },
   "husky": {
     "hooks": {
-      "pre-commit": "yarn lint"
+      "pre-commit": "yarn lint && yarn test"
     }
   }
 }

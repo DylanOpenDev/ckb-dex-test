@@ -1,5 +1,6 @@
 const CKB = require('@nervosnetwork/ckb-sdk-core').default
-const { secp256k1LockScript, secp256k1Dep, getCells, collectInputs } = require('./helper')
+const { scriptToHash, rawTransactionToHash } = require('@nervosnetwork/ckb-sdk-utils')
+const { secp256k1LockScript, secp256k1Dep, getCells, collectInputs, generateLockArgs, secp256k1LockHash } = require('./helper')
 const { CKB_NODE_RPC, SUDTTypeScript, SUDTDep, OrderBookLockScript, OrderBookDep } = require('../utils/const')
 
 const ckb = new CKB(CKB_NODE_RPC)
@@ -9,7 +10,7 @@ const NORMAL_MIN_CAPACITY = BigInt(61) * BigInt(100000000)
 
 const generateOrderOutputs = async (args, inputCapacity) => {
   const secp256k1Lock = await secp256k1LockScript(args)
-  const orderLock = { ...OrderBookLockScript, args }
+  const orderLock = { ...OrderBookLockScript, args: await secp256k1LockHash(args) }
   let outputs = [
     {
       capacity: `0x${ORDER_CAPACITY.toString(16)}`,
@@ -29,9 +30,9 @@ const generateOrderOutputs = async (args, inputCapacity) => {
 const generateSUDTOrderInputsOutputs = async (args, cells) => {
   let inputs = []
   let outputs = []
-  const orderLock = { ...OrderBookLockScript, args }
-  cells.forEach(cell => {
-    if (cell.output.type && cell.output.type.code_hash === SUDTTypeScript.codeHash) {
+  const orderLock = { ...OrderBookLockScript, args: await secp256k1LockHash(args) }
+  for (let cell of cells) {
+    if (cell.output.type && cell.output.type.code_hash === SUDTTypeScript.codeHash && BigInt(cell.output.capacity) === ORDER_CAPACITY) {
       inputs.push({
         previousOutput: {
           txHash: cell.out_point.tx_hash,
@@ -44,12 +45,12 @@ const generateSUDTOrderInputsOutputs = async (args, cells) => {
         lock: orderLock,
         type: SUDTTypeScript,
       })
-      return
+      break
     }
-  })
+  }
   let normalInputs = []
   let sum = BigInt(0)
-  cells.forEach(cell => {
+  for (let cell of cells) {
     if (cell.output.type == null) {
       normalInputs.push({
         previousOutput: {
@@ -60,10 +61,10 @@ const generateSUDTOrderInputsOutputs = async (args, cells) => {
       })
       sum = sum + BigInt(cell.output.capacity)
       if (sum >= NORMAL_MIN_CAPACITY + FEE) {
-        return
+        break
       }
     }
-  })
+  }
   if (sum < NORMAL_MIN_CAPACITY + FEE) {
     throw Error('Capacity not enough')
   }
@@ -77,7 +78,8 @@ const generateSUDTOrderInputsOutputs = async (args, cells) => {
   return { inputs, outputs }
 }
 
-const createBuyOrderTx = async (privateKey, args, orderData) => {
+const createBuyOrderTx = async (privateKey, orderData) => {
+  const args = generateLockArgs(privateKey)
   const liveCells = await getCells(await secp256k1LockScript(args))
   const { inputs, capacity } = collectInputs(liveCells, ORDER_CAPACITY)
   const outputs = await generateOrderOutputs(args, capacity)
@@ -98,7 +100,8 @@ const createBuyOrderTx = async (privateKey, args, orderData) => {
   return txHash
 }
 
-const createSellOrderTx = async (privateKey, args, orderData) => {
+const createSellOrderTx = async (privateKey, orderData) => {
+  const args = generateLockArgs(privateKey)
   const liveCells = await getCells(await secp256k1LockScript(args))
   const { inputs, outputs } = await generateSUDTOrderInputsOutputs(args, liveCells)
   const cellDeps = [SUDTDep, await secp256k1Dep()]
@@ -118,9 +121,13 @@ const createSellOrderTx = async (privateKey, args, orderData) => {
   return txHash
 }
 
-const cancelOrderTx = async (privateKey, args, sellerOutPoint, inputCapacity) => {
-  const cellDeps = [OrderBookDep, await secp256k1Dep(), SUDTDep]
+const cancelOrderTx = async (privateKey, sellerOutPoint, inputCapacity) => {
+  const args = generateLockArgs(privateKey)
+  const liveCells = await getCells(await secp256k1LockScript(args))
+  const { inputs, capacity } = collectInputs(liveCells, NORMAL_MIN_CAPACITY)
   const secp256k1Lock = await secp256k1LockScript(args)
+  const orderLock = { ...OrderBookLockScript, args: await secp256k1LockHash(args) }
+  const cellDeps = [OrderBookDep, await secp256k1Dep(), SUDTDep]
   const rawTx = {
     version: '0x0',
     cellDeps,
@@ -133,18 +140,34 @@ const cancelOrderTx = async (privateKey, args, sellerOutPoint, inputCapacity) =>
         },
         since: '0x0',
       },
+      ...inputs,
     ],
     outputs: [
       {
-        capacity: `0x${(inputCapacity - FEE).toString(16)}`,
+        capacity: `0x${(inputCapacity + capacity - FEE).toString(16)}`,
         lock: secp256k1Lock,
         type: null,
       },
     ],
     outputsData: ['0x'],
   }
-  rawTx.witnesses = rawTx.inputs.map((_, i) => (i > 0 ? '0x' : { lock: '', inputType: '', outputType: '' }))
-  const signedTx = ckb.signTransaction(privateKey)(rawTx)
+  rawTx.witnesses = rawTx.inputs.map((_, i) => (i === 1 ? { lock: '', inputType: '', outputType: '' } : '0x'))
+
+  const keys = new Map()
+  keys.set(scriptToHash(orderLock), null)
+  keys.set(scriptToHash(secp256k1Lock), privateKey)
+  const signedWitnesses = ckb.signWitnesses(keys)({
+    transactionHash: rawTransactionToHash(rawTx),
+    witnesses: rawTx.witnesses,
+    inputCells: rawTx.inputs.map((input, index) => {
+      return {
+        outPoint: input.previousOutput,
+        lock: index === 0 ? orderLock : secp256k1Lock,
+      }
+    }),
+    skipMissingKeys: true,
+  })
+  const signedTx = { ...rawTx, witnesses: signedWitnesses }
   console.log(JSON.stringify(signedTx))
   const txHash = await ckb.rpc.sendTransaction(signedTx)
   console.info(`Cancel order tx has been sent with tx hash ${txHash}`)
