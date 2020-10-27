@@ -92,7 +92,6 @@ const getSUDTCells = async type => {
       body,
     })
     res = await res.json()
-    console.log(res)
     return res.result.objects
   } catch (error) {
     console.error('error', error)
