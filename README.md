@@ -1,12 +1,14 @@
 # ckb-dex-test
 
-The test for the DEX on Nervos CKB
+The test for the [order book script](https://github.com/glias/dex-contracts) on Nervos CKB
 
 ### How to Work
 
 - Edit .env file
 
-You need to copy .env file from .env.example and input your own private keys.
+You need to copy `.env` file from `.env.example` and input your own private keys.
+
+You can input your own SUDT type script and input your own order book lock script in `src/utils/const.js`.
 
 ```shell
 git clone https://github.com/DylanOpenDev/ckb-dex-test.git
