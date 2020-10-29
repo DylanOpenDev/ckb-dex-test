@@ -2,15 +2,16 @@ const CKB = require('@nervosnetwork/ckb-sdk-core').default
 const { secp256k1LockScript, secp256k1Dep, getCells, getSUDTCells, collectInputs, secp256k1LockHash } = require('../rpc/helper')
 const { CKB_NODE_RPC, SUDTDep, SUDTTypeScript, OrderBookLockScript } = require('../utils/const')
 const { u128ToLEHex, u64ToLEHex, leHexToU128 } = require('../utils/buffer')
+const { BATCH_ALICE_PRIVATE_KEY, BATCH_BOB_PRIVATE_KEY } = require('../utils/config')
 
 const ckb = new CKB(CKB_NODE_RPC)
-const FEE = BigInt(10000)
+const FEE = BigInt(100000)
 const BUYER_CAPACITY = BigInt(400) * BigInt(100000000)
 const SELLER_CAPACITY = BigInt(200) * BigInt(100000000)
 const SUDT_DECIMAL = BigInt(10) ** BigInt(8)
 const CKB_DECIMAL = BigInt(10) ** BigInt(8)
 const PRICE_DECIMAL = BigInt(10) ** BigInt(10)
-const SPLIT_COUNT = 10
+const SPLIT_COUNT = 2
 
 const batchUDTType = { ...SUDTTypeScript, args: '0xa1b0cb1a3e2c49ff91bfc884a2cb428bae8cac5eea8152629612673cef9d1940' }
 
@@ -42,7 +43,7 @@ const multiBuyOrderData = count => {
   return orderDataList
 }
 
-const batchBuyOrderCells = async privateKey => {
+const batchBuyOrders = async privateKey => {
   let pubKey = ckb.utils.privateKeyToPublicKey(privateKey)
   const args = '0x' + ckb.utils.blake160(pubKey, 'hex')
   const liveCells = await getCells(await secp256k1LockScript(args))
@@ -59,9 +60,8 @@ const batchBuyOrderCells = async privateKey => {
   }
   rawTx.witnesses = rawTx.inputs.map((_, i) => (i > 0 ? '0x' : { lock: '', inputType: '', outputType: '' }))
   const signedTx = ckb.signTransaction(privateKey)(rawTx)
-  console.log(JSON.stringify(signedTx))
   const txHash = await ckb.rpc.sendTransaction(signedTx)
-  console.info(`Split cells has been sent with tx hash ${txHash}`)
+  console.info(`Creating buy orders has been sent with tx hash ${txHash}`)
   return txHash
 }
 
@@ -95,7 +95,6 @@ const batchSellOrders = async privateKey => {
   const args = '0x' + ckb.utils.blake160(pubKey, 'hex')
   const udtLiveCells = (await getSUDTCells(batchUDTType)).filter(cell => cell.output.capacity > SELLER_CAPACITY * BigInt(SPLIT_COUNT))
   const udtCell = udtLiveCells[0]
-  console.log(udtCell)
   const sudtAmount = leHexToU128(udtCell.output_data)
   const inputs = [
     {
@@ -117,12 +116,11 @@ const batchSellOrders = async privateKey => {
     outputsData: multiSellOrderData(SPLIT_COUNT, sudtAmount),
   }
   rawTx.witnesses = rawTx.inputs.map((_, i) => (i > 0 ? '0x' : { lock: '', inputType: '', outputType: '' }))
-  console.log(JSON.stringify(rawTx))
   const signedTx = ckb.signTransaction(privateKey)(rawTx)
   const txHash = await ckb.rpc.sendTransaction(signedTx)
-  console.info(`Creating order tx has been sent with tx hash ${txHash}`)
+  console.info(`Creating sell orders has been sent with tx hash ${txHash}`)
   return txHash
 }
 
-// batchBuyOrders('0xa664b96648920d1b8bed64f166ceba73069270ecc832ab6eda45f57e90945987')
-batchSellOrders('0xc4c217576b0b3e908be7460745768bf18691199b6d9541af1a361f4cfe313a94')
+batchBuyOrders(BATCH_ALICE_PRIVATE_KEY)
+batchSellOrders(BATCH_BOB_PRIVATE_KEY)
