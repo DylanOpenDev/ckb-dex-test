@@ -55,4 +55,6 @@ const cancelOrClaimOrderTx = async () => {
   await cancelOrderTx(BOB_PRIVATE_KEY, sellerOutPoint, BigInt(600) * CKB_DECIMAL)
 }
 
-cancelOrClaimOrderTx()
+createOrderTxs()
+// createDealMakerOrderTx()
+// cancelOrClaimOrderTx()
